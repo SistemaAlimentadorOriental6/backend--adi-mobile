@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	_ "time/tzdata" // Garantiza que las zonas horarias de la IANA estén cargadas en cualquier SO
 
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/microsoft/go-mssqldb"
 	"github.com/joho/godotenv"
+	_ "github.com/microsoft/go-mssqldb"
 )
 
 // InitDB inicializa la conexión a la base de datos MySQL
@@ -24,7 +25,8 @@ func InitDB() *sql.DB {
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", dbUser, dbPass, dbHost, dbPort, dbName)
+	// Configura la zona horaria en America/Bogota para Go y -05:00 para la sesión de MySQL
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=America%%2FBogota&time_zone=%%27-05:00%%27", dbUser, dbPass, dbHost, dbPort, dbName)
 	
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
