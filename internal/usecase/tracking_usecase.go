@@ -98,6 +98,23 @@ func (u *trackingUseCase) GuardarUbicacionesBatch(items []TrackingBatchItem) err
 		}
 	}
 
+	// Extraer todas las marcas de tiempo para consultar y filtrar los duplicados en la base de datos
+	var tsList []time.Time
+	for _, it := range items {
+		loc, _ := time.LoadLocation("America/Bogota")
+		if loc == nil {
+			loc = time.UTC
+		}
+		ts := time.UnixMilli(it.Timestamp).In(loc)
+		tsList = append(tsList, ts)
+	}
+
+	// Obtener marcas de tiempo que ya existen en MySQL para evitar inserciones duplicadas (idempotencia)
+	existingMap, err := u.repo.GetExistingTimestamps(items[0].Cedula, tsList)
+	if err != nil {
+		return err
+	}
+
 	var toSave []*domain.TrackingUbicacion
 	for _, it := range items {
 		// Convertir timestamp de JS (milisegundos) a time.Time en Bogotá
@@ -106,6 +123,12 @@ func (u *trackingUseCase) GuardarUbicacionesBatch(items []TrackingBatchItem) err
 			loc = time.UTC
 		}
 		ts := time.UnixMilli(it.Timestamp).In(loc)
+
+		// Filtrar si ya existe en la base de datos MySQL (por reintento de red del cliente)
+		key := ts.Format("2006-01-02 15:04:05.000")
+		if existingMap[key] {
+			continue
+		}
 
 		// Calcular si el punto está dentro de la geocerca para este lugar
 		validadoItem := it.Validado
@@ -124,6 +147,11 @@ func (u *trackingUseCase) GuardarUbicacionesBatch(items []TrackingBatchItem) err
 			Estado:    "ok",
 			Validado:  validadoItem,
 		})
+	}
+
+	// Si todos los elementos del batch ya existían, no es necesario llamar a SaveBatch
+	if len(toSave) == 0 {
+		return nil
 	}
 
 	return u.repo.SaveBatch(toSave)

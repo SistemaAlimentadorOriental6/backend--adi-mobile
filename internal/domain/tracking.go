@@ -17,4 +17,5 @@ type TrackingRepository interface {
 	Save(t *TrackingUbicacion) error
 	SaveBatch(items []*TrackingUbicacion) error
 	HasActiveSession(cedula string) (bool, error)
+	GetExistingTimestamps(cedula string, timestamps []time.Time) (map[string]bool, error)
 }

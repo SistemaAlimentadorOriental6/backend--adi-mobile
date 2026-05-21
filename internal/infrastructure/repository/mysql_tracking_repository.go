@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"time"
 	"turnovia-backend/internal/domain"
 )
 
@@ -80,4 +81,41 @@ func (r *mysqlTrackingRepository) HasActiveSession(cedula string) (bool, error) 
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// GetExistingTimestamps consulta a la base de datos MySQL por marcas de tiempo de tracking que ya existen para este usuario.
+func (r *mysqlTrackingRepository) GetExistingTimestamps(cedula string, timestamps []time.Time) (map[string]bool, error) {
+	if len(timestamps) == 0 {
+		return make(map[string]bool), nil
+	}
+
+	query := `SELECT timestamp FROM tracking_ubicacion WHERE cedula = ? AND timestamp IN (`
+	args := []interface{}{cedula}
+	for i, ts := range timestamps {
+		if i > 0 {
+			query += ","
+		}
+		query += "?"
+		args = append(args, ts)
+	}
+	query += ")"
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	existing := make(map[string]bool)
+	for rows.Next() {
+		var t time.Time
+		if err := rows.Scan(&t); err != nil {
+			return nil, err
+		}
+		// Formatear llave para comparación segura en milisegundos
+		key := t.Format("2006-01-02 15:04:05.000")
+		existing[key] = true
+	}
+
+	return existing, nil
 }
