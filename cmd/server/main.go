@@ -39,11 +39,11 @@ func main() {
 	reporteRepo := repository.NewMysqlReporteRepository(dbMySQL)
 	trackingRepo := repository.NewMysqlTrackingRepository(dbMySQL)
 
-	authUC := usecase.NewAuthUseCase(userMySQLRepo, userSQLServerRepo)
-	reporteUC := usecase.NewReporteUseCase(reporteRepo)
-	trackingUC := usecase.NewTrackingUseCase(trackingRepo)
 	geocercaRepo := repository.NewMysqlGeocercaRepository(dbMySQL)
 	geocercaUC := usecase.NewGeocercaUseCase(geocercaRepo)
+	authUC := usecase.NewAuthUseCase(userMySQLRepo, userSQLServerRepo)
+	reporteUC := usecase.NewReporteUseCase(reporteRepo)
+	trackingUC := usecase.NewTrackingUseCase(trackingRepo, geocercaRepo)
 
 	authHandler := handler.NewAuthHandler(authUC)
 	reporteHandler := handler.NewReporteHandler(reporteUC)

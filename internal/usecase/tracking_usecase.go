@@ -33,11 +33,12 @@ type TrackingUseCase interface {
 }
 
 type trackingUseCase struct {
-	repo domain.TrackingRepository
+	repo         domain.TrackingRepository
+	geocercaRepo domain.GeocercaRepository
 }
 
-func NewTrackingUseCase(repo domain.TrackingRepository) TrackingUseCase {
-	return &trackingUseCase{repo: repo}
+func NewTrackingUseCase(repo domain.TrackingRepository, geocercaRepo domain.GeocercaRepository) TrackingUseCase {
+	return &trackingUseCase{repo: repo, geocercaRepo: geocercaRepo}
 }
 
 func (u *trackingUseCase) GuardarUbicacion(cedula, lugar string, lat, lng float64, estado string, validado bool) error {
@@ -47,6 +48,19 @@ func (u *trackingUseCase) GuardarUbicacion(cedula, lugar string, lat, lng float6
 	}
 	if !hasActive {
 		return ErrNoActiveSession
+	}
+
+	// Validar usando geocercas de base de datos si no fue validada previamente o como validación definitiva
+	if lugar != "" {
+		geocercas, errG := u.geocercaRepo.ObtenerTodas()
+		if errG == nil {
+			for _, g := range geocercas {
+				if g.Nombre == lugar {
+					validado = domain.PointInPolygon(lat, lng, g.Puntos)
+					break
+				}
+			}
+		}
 	}
 
 	tracking := &domain.TrackingUbicacion{
@@ -75,6 +89,15 @@ func (u *trackingUseCase) GuardarUbicacionesBatch(items []TrackingBatchItem) err
 		return ErrNoActiveSession
 	}
 
+	// Cargar todas las geocercas una única vez para validar el lote completo en memoria
+	mapaGeocercas := make(map[string][]domain.Punto)
+	geocercas, errG := u.geocercaRepo.ObtenerTodas()
+	if errG == nil {
+		for _, g := range geocercas {
+			mapaGeocercas[g.Nombre] = g.Puntos
+		}
+	}
+
 	var toSave []*domain.TrackingUbicacion
 	for _, it := range items {
 		// Convertir timestamp de JS (milisegundos) a time.Time en Bogotá
@@ -84,6 +107,14 @@ func (u *trackingUseCase) GuardarUbicacionesBatch(items []TrackingBatchItem) err
 		}
 		ts := time.UnixMilli(it.Timestamp).In(loc)
 
+		// Calcular si el punto está dentro de la geocerca para este lugar
+		validadoItem := it.Validado
+		if it.Lugar != "" {
+			if puntos, existe := mapaGeocercas[it.Lugar]; existe {
+				validadoItem = domain.PointInPolygon(it.Latitud, it.Longitud, puntos)
+			}
+		}
+
 		toSave = append(toSave, &domain.TrackingUbicacion{
 			Cedula:    it.Cedula,
 			Lugar:     it.Lugar,
@@ -91,7 +122,7 @@ func (u *trackingUseCase) GuardarUbicacionesBatch(items []TrackingBatchItem) err
 			Longitud:  it.Longitud,
 			Timestamp: ts,
 			Estado:    "ok",
-			Validado:  it.Validado,
+			Validado:  validadoItem,
 		})
 	}
 

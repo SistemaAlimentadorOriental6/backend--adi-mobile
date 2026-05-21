@@ -28,3 +28,28 @@ type GeocercaRegistro struct {
 type GeocercaRepository interface {
 	ObtenerTodas() ([]*Geocerca, error)
 }
+
+// PointInPolygon determina si un punto (latitud, longitud) está dentro del polígono de la geocerca.
+func PointInPolygon(latitud, longitud float64, poligono []Punto) bool {
+	dentro := false
+	n := len(poligono)
+	if n < 3 {
+		return false
+	}
+	j := n - 1
+	for i := 0; i < n; i++ {
+		xi := poligono[i].Latitud
+		yi := poligono[i].Longitud
+		xj := poligono[j].Latitud
+		yj := poligono[j].Longitud
+
+		interseccion := ((yi > longitud) != (yj > longitud)) &&
+			(latitud < (xj-xi)*(longitud-yi)/(yj-yi)+xi)
+		if interseccion {
+			dentro = !dentro
+		}
+		j = i
+	}
+	return dentro
+}
+
