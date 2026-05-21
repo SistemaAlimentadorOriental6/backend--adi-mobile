@@ -42,10 +42,13 @@ func main() {
 	authUC := usecase.NewAuthUseCase(userMySQLRepo, userSQLServerRepo)
 	reporteUC := usecase.NewReporteUseCase(reporteRepo)
 	trackingUC := usecase.NewTrackingUseCase(trackingRepo)
+	geocercaRepo := repository.NewMysqlGeocercaRepository(dbMySQL)
+	geocercaUC := usecase.NewGeocercaUseCase(geocercaRepo)
 
 	authHandler := handler.NewAuthHandler(authUC)
 	reporteHandler := handler.NewReporteHandler(reporteUC)
 	trackingHandler := handler.NewTrackingHandler(trackingUC)
+	geocercaHandler := handler.NewGeocercaHandler(geocercaUC)
 	proxyRepo := repository.NewProxyEmpleadoRepository()
 	proxyHandler := handler.NewProxyHandler(proxyRepo, userSQLServerRepo)
 
@@ -57,6 +60,7 @@ func main() {
 	mux.HandleFunc("/api/tracking", trackingHandler.GuardarUbicacion)
 	mux.HandleFunc("/api/tracking/batch", trackingHandler.GuardarUbicacionBatch)
 	mux.HandleFunc("/api/proxy/empleados", proxyHandler.GetEmpleados)
+	mux.HandleFunc("/api/geocercas", geocercaHandler.Listar)
 
 	port := os.Getenv("PORT")
 	if port == "" {
