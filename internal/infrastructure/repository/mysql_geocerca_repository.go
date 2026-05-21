@@ -18,7 +18,7 @@ func NewMysqlGeocercaRepository(db *sql.DB) domain.GeocercaRepository {
 // ObtenerTodas recupera las geocercas de MySQL ordenadas por nombre y orden_punto.
 func (r *mysqlGeocercaRepository) ObtenerTodas() ([]*domain.Geocerca, error) {
 	// Consulta los puntos ordenados de cada ubicación geográfica
-	consulta := `SELECT nombre, orden_punto, latitude, longitude 
+	consulta := `SELECT COALESCE(nombre, ''), COALESCE(orden_punto, 0), COALESCE(latitude, ''), COALESCE(longitude, '') 
 		FROM geocercas 
 		ORDER BY nombre, orden_punto`
 
