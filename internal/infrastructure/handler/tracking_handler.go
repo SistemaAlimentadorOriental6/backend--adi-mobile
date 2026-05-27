@@ -22,6 +22,7 @@ type trackingRequest struct {
 	Latitud  float64 `json:"latitud"`
 	Longitud float64 `json:"longitud"`
 	Validado bool    `json:"validado"`
+	Estado   string  `json:"estado"`
 }
 
 type trackingBatchItemRequest struct {
@@ -32,6 +33,7 @@ type trackingBatchItemRequest struct {
 	IsStationary bool    `json:"is_stationary"`
 	Lugar        string  `json:"lugar"`
 	Cedula       string  `json:"cedula"`
+	Estado       string  `json:"estado"`
 }
 
 type trackingBatchRequest struct {
@@ -73,6 +75,10 @@ func (h *TrackingHandler) GuardarUbicacionBatch(w http.ResponseWriter, r *http.R
 
 	var batchItems []usecase.TrackingBatchItem
 	for _, loc := range req.Locations {
+		estado := loc.Estado
+		if estado == "" {
+			estado = "ok"
+		}
 		batchItems = append(batchItems, usecase.TrackingBatchItem{
 			Cedula:       loc.Cedula,
 			Lugar:        loc.Lugar,
@@ -82,6 +88,7 @@ func (h *TrackingHandler) GuardarUbicacionBatch(w http.ResponseWriter, r *http.R
 			Timestamp:    loc.Timestamp,
 			IsStationary: loc.IsStationary,
 			Validado:     false,
+			Estado:       estado,
 		})
 	}
 
@@ -136,7 +143,11 @@ func (h *TrackingHandler) GuardarUbicacion(w http.ResponseWriter, r *http.Reques
 
 	log.Printf("📍 Tracking recibido: cedula=%s lugar=%s lat=%f lng=%f validado=%v", req.Cedula, req.Lugar, req.Latitud, req.Longitud, req.Validado)
 
-	err := h.useCase.GuardarUbicacion(req.Cedula, req.Lugar, req.Latitud, req.Longitud, "ok", req.Validado)
+	estado := req.Estado
+	if estado == "" {
+		estado = "ok"
+	}
+	err := h.useCase.GuardarUbicacion(req.Cedula, req.Lugar, req.Latitud, req.Longitud, estado, req.Validado)
 
 	w.Header().Set("Content-Type", "application/json")
 

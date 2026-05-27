@@ -25,6 +25,7 @@ type TrackingBatchItem struct {
 	Timestamp    int64   `json:"timestamp"`
 	IsStationary bool    `json:"is_stationary"`
 	Validado     bool    `json:"validado"`
+	Estado       string  `json:"estado"`
 }
 
 type TrackingUseCase interface {
@@ -138,13 +139,18 @@ func (u *trackingUseCase) GuardarUbicacionesBatch(items []TrackingBatchItem) err
 			}
 		}
 
+		estadoItem := it.Estado
+		if estadoItem == "" {
+			estadoItem = "ok"
+		}
+
 		toSave = append(toSave, &domain.TrackingUbicacion{
 			Cedula:    it.Cedula,
 			Lugar:     it.Lugar,
 			Latitud:   it.Latitud,
 			Longitud:  it.Longitud,
 			Timestamp: ts,
-			Estado:    "ok",
+			Estado:    estadoItem,
 			Validado:  validadoItem,
 		})
 	}
