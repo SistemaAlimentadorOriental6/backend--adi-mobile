@@ -63,15 +63,14 @@ func (r *mysqlTrackingRepository) SaveBatch(items []*domain.TrackingUbicacion) e
 
 func (r *mysqlTrackingRepository) HasActiveSession(cedula string) (bool, error) {
 	query := `
-		SELECT COUNT(*) FROM registros 
-		WHERE cedula = ? 
-		AND entradasalida = 'entrada' 
-		AND DATE(tiempo) = CURDATE()
+		SELECT COUNT(*) FROM registros r1
+		WHERE r1.cedula = ?
+		AND r1.entradasalida = 'entrada'
 		AND NOT EXISTS (
-			SELECT 1 FROM registros r2 
-			WHERE r2.cedula = registros.cedula 
-			AND r2.entradasalida = 'salida' 
-			AND DATE(r2.tiempo) = CURDATE()
+			SELECT 1 FROM registros r2
+			WHERE r2.cedula = r1.cedula
+			AND r2.entradasalida = 'salida'
+			AND r2.tiempo > r1.tiempo
 		)
 	`
 	row := r.db.QueryRow(query, cedula)
