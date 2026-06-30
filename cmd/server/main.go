@@ -45,10 +45,18 @@ func main() {
 	reporteUC := usecase.NewReporteUseCase(reporteRepo)
 	trackingUC := usecase.NewTrackingUseCase(trackingRepo, geocercaRepo)
 
+	// Logs de diagnóstico: crear tabla automáticamente si no existe
+	logRepo := repository.NewMysqlLogRepository(dbMySQL)
+	if err := logRepo.(*repository.MysqlLogRepository).EnsureSchema(); err != nil {
+		log.Printf("⚠️  No se pudo crear tabla logs: %v", err)
+	}
+	logUC := usecase.NewLogUseCase(logRepo)
+
 	authHandler := handler.NewAuthHandler(authUC)
 	reporteHandler := handler.NewReporteHandler(reporteUC)
 	trackingHandler := handler.NewTrackingHandler(trackingUC)
 	geocercaHandler := handler.NewGeocercaHandler(geocercaUC)
+	logHandler := handler.NewLogHandler(logUC)
 	proxyRepo := repository.NewProxyEmpleadoRepository()
 	proxyHandler := handler.NewProxyHandler(proxyRepo, userSQLServerRepo)
 
@@ -61,6 +69,7 @@ func main() {
 	mux.HandleFunc("/api/tracking/batch", trackingHandler.GuardarUbicacionBatch)
 	mux.HandleFunc("/api/proxy/empleados", proxyHandler.GetEmpleados)
 	mux.HandleFunc("/api/geocercas", geocercaHandler.Listar)
+	mux.HandleFunc("/api/logs", logHandler.RegistrarBatch)
 
 	port := os.Getenv("PORT")
 	if port == "" {
