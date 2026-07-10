@@ -16,11 +16,11 @@ func NewMysqlUserRepository(db *sql.DB) domain.UserRepository {
 }
 
 func (r *mysqlUserRepository) GetByCedula(cedula string, email string) (*domain.Usuario, error) {
-	query := "SELECT cedula, nombre, COALESCE(cargo, ''), COALESCE(email, ''), COALESCE(biometric_token, '') FROM auxiliares WHERE cedula = ?"
+	query := "SELECT cedula, nombre FROM auxiliares WHERE cedula = ?"
 	row := r.db.QueryRow(query, cedula)
 
 	user := &domain.Usuario{}
-	err := row.Scan(&user.Cedula, &user.Nombre, &user.Cargo, &user.Email, &user.BiometricToken)
+	err := row.Scan(&user.Cedula, &user.Nombre)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("usuario no encontrado")
@@ -33,11 +33,11 @@ func (r *mysqlUserRepository) GetByCedula(cedula string, email string) (*domain.
 
 func (r *mysqlUserRepository) Upsert(user *domain.Usuario) error {
 	query := `
-		INSERT INTO auxiliares (cedula, nombre, cargo, email) 
-		VALUES (?, ?, ?, ?) 
-		ON DUPLICATE KEY UPDATE nombre = VALUES(nombre), cargo = VALUES(cargo), email = VALUES(email)
+		INSERT INTO auxiliares (cedula, nombre) 
+		VALUES (?, ?) 
+		ON DUPLICATE KEY UPDATE nombre = VALUES(nombre)
 	`
-	_, err := r.db.Exec(query, user.Cedula, user.Nombre, user.Cargo, user.Email)
+	_, err := r.db.Exec(query, user.Cedula, user.Nombre)
 	return err
 }
 
@@ -62,16 +62,11 @@ func (r *mysqlUserRepository) RemoveBiometricToken(cedula string) error {
 }
 
 func (r *mysqlUserRepository) GetByBiometricToken(token string) (*domain.Usuario, error) {
-	query := `
-		SELECT a.cedula, a.nombre, COALESCE(a.cargo, ''), vb.email, vb.biometric_token 
-		FROM validacion_biometrico vb
-		INNER JOIN auxiliares a ON vb.cedula = a.cedula
-		WHERE vb.biometric_token = ?
-	`
+	query := "SELECT cedula, email, biometric_token FROM validacion_biometrico WHERE biometric_token = ?"
 	row := r.db.QueryRow(query, token)
 
 	user := &domain.Usuario{}
-	err := row.Scan(&user.Cedula, &user.Nombre, &user.Cargo, &user.Email, &user.BiometricToken)
+	err := row.Scan(&user.Cedula, &user.Email, &user.BiometricToken)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("token biométrico inválido o no registrado")
@@ -87,8 +82,7 @@ func (r *mysqlUserRepository) EnsureSchema() error {
 	createAuxiliaresQuery := `
 		CREATE TABLE IF NOT EXISTS auxiliares (
 			cedula VARCHAR(50) PRIMARY KEY,
-			nombre VARCHAR(150) NOT NULL,
-			cargo VARCHAR(100) DEFAULT NULL
+			nombre VARCHAR(150) NOT NULL
 		);
 	`
 	if _, err := r.db.Exec(createAuxiliaresQuery); err != nil {
@@ -109,7 +103,5 @@ func (r *mysqlUserRepository) EnsureSchema() error {
 		return err
 	}
 
-	// Por si la tabla auxiliares antigua no tenía cargo
-	r.db.Exec("ALTER TABLE auxiliares ADD COLUMN cargo VARCHAR(100) DEFAULT NULL")
 	return nil
 }
