@@ -74,6 +74,7 @@ func main() {
 	mux.HandleFunc("/api/validate-login", authHandler.Login)
 	mux.HandleFunc("/api/biometrics/register", authHandler.RegisterBiometrics)
 	mux.HandleFunc("/api/biometrics/login", authHandler.LoginBiometrics)
+	mux.HandleFunc("/api/biometrics/remove", authHandler.RemoveBiometrics)
 	mux.HandleFunc("/api/registrar-actividad", reporteHandler.Registrar)
 	mux.HandleFunc("/api/listar-actividad", reporteHandler.Listar)
 	mux.HandleFunc("/api/registro-hoy", reporteHandler.ObtenerRegistroHoy)

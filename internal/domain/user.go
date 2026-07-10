@@ -14,6 +14,7 @@ type UserRepository interface {
 	GetByCedula(cedula string, email string) (*Usuario, error)
 	Upsert(user *Usuario) error
 	GetActiveEmployees() (map[string]Usuario, error)
-	SaveBiometricToken(cedula string, token string) error
+	SaveBiometricToken(cedula string, email string, token string) error
 	GetByBiometricToken(token string) (*Usuario, error)
+	RemoveBiometricToken(cedula string) error
 }

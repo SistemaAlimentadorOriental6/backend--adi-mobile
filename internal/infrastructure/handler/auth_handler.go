@@ -93,6 +93,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 type registerBiometricsRequest struct {
 	Cedula string `json:"cedula"`
+	Email  string `json:"email"`
 	Token  string `json:"token"`
 }
 
@@ -111,13 +112,13 @@ func (h *AuthHandler) RegisterBiometrics(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if req.Cedula == "" || req.Token == "" {
+	if req.Cedula == "" || req.Email == "" || req.Token == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "La cédula y el token son requeridos"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "La cédula, el email y el token son requeridos"})
 		return
 	}
 
-	err := h.authUseCase.RegisterBiometrics(req.Cedula, req.Token)
+	err := h.authUseCase.RegisterBiometrics(req.Cedula, req.Email, req.Token)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": err.Error()})
@@ -166,6 +167,44 @@ func (h *AuthHandler) LoginBiometrics(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"message": "¡Bienvenido de nuevo!",
 		"user":    user,
+	})
+}
+
+type removeBiometricsRequest struct {
+	Cedula string `json:"cedula"`
+}
+
+func (h *AuthHandler) RemoveBiometrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Método no permitido"})
+		return
+	}
+
+	var req removeBiometricsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Cuerpo inválido"})
+		return
+	}
+
+	if req.Cedula == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "La cédula es requerida"})
+		return
+	}
+
+	err := h.authUseCase.RemoveBiometrics(req.Cedula)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Token biométrico removido correctamente",
 	})
 }
 

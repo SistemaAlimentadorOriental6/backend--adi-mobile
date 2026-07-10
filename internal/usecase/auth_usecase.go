@@ -7,8 +7,9 @@ import (
 
 type AuthUseCase interface {
 	Login(cedula string, email string) (*domain.Usuario, error)
-	RegisterBiometrics(cedula string, token string) error
+	RegisterBiometrics(cedula string, email string, token string) error
 	LoginWithBiometrics(token string) (*domain.Usuario, error)
+	RemoveBiometrics(cedula string) error
 }
 
 type authUseCase struct {
@@ -45,19 +46,35 @@ func (u *authUseCase) Login(cedula string, email string) (*domain.Usuario, error
 	return userDetails, nil
 }
 
-func (u *authUseCase) RegisterBiometrics(cedula string, token string) error {
+func (u *authUseCase) RegisterBiometrics(cedula string, email string, token string) error {
 	log.Printf("🔒 Registrando token biométrico para la cédula: %s", cedula)
-	return u.mysqlRepo.SaveBiometricToken(cedula, token)
+	return u.mysqlRepo.SaveBiometricToken(cedula, email, token)
 }
 
 func (u *authUseCase) LoginWithBiometrics(token string) (*domain.Usuario, error) {
 	log.Printf("🔍 Intentando login con token biométrico")
-	user, err := u.mysqlRepo.GetByBiometricToken(token)
+	cachedUser, err := u.mysqlRepo.GetByBiometricToken(token)
 	if err != nil {
-		log.Printf("❌ Error buscando token biométrico: %v", err)
+		log.Printf("❌ Error buscando token biométrico en MySQL: %v", err)
 		return nil, err
 	}
 
-	log.Printf("✅ Login biométrico exitoso para el usuario: %s (%s)", user.Nombre, user.Cedula)
-	return user, nil
+	// Validar el usuario contra SQL Server (origen de verdad) usando su cédula y correo guardados
+	log.Printf("🔍 Validando usuario biométrico en SQL Server para cédula: %s, email: %s", cachedUser.Cedula, cachedUser.Email)
+	userDetails, err := u.sqlServerRepo.GetByCedula(cachedUser.Cedula, cachedUser.Email)
+	if err != nil {
+		log.Printf("❌ Validación biométrica falló en SQL Server para %s: %v", cachedUser.Cedula, err)
+		return nil, err
+	}
+
+	// Sincronizar de nuevo los datos en MySQL
+	_ = u.mysqlRepo.Upsert(userDetails)
+
+	log.Printf("✅ Login biométrico exitoso y verificado en SQL Server para: %s (%s)", userDetails.Nombre, userDetails.Cedula)
+	return userDetails, nil
+}
+
+func (u *authUseCase) RemoveBiometrics(cedula string) error {
+	log.Printf("🔓 Desvinculando token biométrico para la cédula: %s", cedula)
+	return u.mysqlRepo.RemoveBiometricToken(cedula)
 }

@@ -45,14 +45,29 @@ func (r *mysqlUserRepository) GetActiveEmployees() (map[string]domain.Usuario, e
 	return make(map[string]domain.Usuario), nil
 }
 
-func (r *mysqlUserRepository) SaveBiometricToken(cedula string, token string) error {
-	query := "UPDATE auxiliares SET biometric_token = ? WHERE cedula = ?"
-	_, err := r.db.Exec(query, token, cedula)
+func (r *mysqlUserRepository) SaveBiometricToken(cedula string, email string, token string) error {
+	query := `
+		INSERT INTO validacion_biometrico (cedula, email, biometric_token) 
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE email = VALUES(email), biometric_token = VALUES(biometric_token)
+	`
+	_, err := r.db.Exec(query, cedula, email, token)
+	return err
+}
+
+func (r *mysqlUserRepository) RemoveBiometricToken(cedula string) error {
+	query := "DELETE FROM validacion_biometrico WHERE cedula = ?"
+	_, err := r.db.Exec(query, cedula)
 	return err
 }
 
 func (r *mysqlUserRepository) GetByBiometricToken(token string) (*domain.Usuario, error) {
-	query := "SELECT cedula, nombre, COALESCE(cargo, ''), COALESCE(email, ''), COALESCE(biometric_token, '') FROM auxiliares WHERE biometric_token = ?"
+	query := `
+		SELECT a.cedula, a.nombre, COALESCE(a.cargo, ''), vb.email, vb.biometric_token 
+		FROM validacion_biometrico vb
+		INNER JOIN auxiliares a ON vb.cedula = a.cedula
+		WHERE vb.biometric_token = ?
+	`
 	row := r.db.QueryRow(query, token)
 
 	user := &domain.Usuario{}
@@ -68,21 +83,33 @@ func (r *mysqlUserRepository) GetByBiometricToken(token string) (*domain.Usuario
 }
 
 func (r *mysqlUserRepository) EnsureSchema() error {
-	createTableQuery := `
+	// Asegurar tabla auxiliares
+	createAuxiliaresQuery := `
 		CREATE TABLE IF NOT EXISTS auxiliares (
 			cedula VARCHAR(50) PRIMARY KEY,
 			nombre VARCHAR(150) NOT NULL,
-			cargo VARCHAR(100) DEFAULT NULL,
-			email VARCHAR(150) DEFAULT NULL,
-			biometric_token VARCHAR(255) DEFAULT NULL
+			cargo VARCHAR(100) DEFAULT NULL
 		);
 	`
-	if _, err := r.db.Exec(createTableQuery); err != nil {
+	if _, err := r.db.Exec(createAuxiliaresQuery); err != nil {
 		return err
 	}
 
+	// Asegurar tabla validacion_biometrico
+	createBiometricoQuery := `
+		CREATE TABLE IF NOT EXISTS validacion_biometrico (
+			cedula VARCHAR(50) PRIMARY KEY,
+			email VARCHAR(150) NOT NULL,
+			biometric_token VARCHAR(255) NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE KEY uq_biometric_token (biometric_token)
+		);
+	`
+	if _, err := r.db.Exec(createBiometricoQuery); err != nil {
+		return err
+	}
+
+	// Por si la tabla auxiliares antigua no tenía cargo
 	r.db.Exec("ALTER TABLE auxiliares ADD COLUMN cargo VARCHAR(100) DEFAULT NULL")
-	r.db.Exec("ALTER TABLE auxiliares ADD COLUMN email VARCHAR(150) DEFAULT NULL")
-	r.db.Exec("ALTER TABLE auxiliares ADD COLUMN biometric_token VARCHAR(255) DEFAULT NULL")
 	return nil
 }

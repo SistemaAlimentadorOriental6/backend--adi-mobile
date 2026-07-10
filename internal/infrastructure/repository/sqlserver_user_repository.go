@@ -113,10 +113,14 @@ func (r *sqlServerUserRepository) Upsert(user *domain.Usuario) error {
 	return nil
 }
 
-func (r *sqlServerUserRepository) SaveBiometricToken(cedula string, token string) error {
+func (r *sqlServerUserRepository) SaveBiometricToken(cedula string, email string, token string) error {
 	return nil
 }
 
 func (r *sqlServerUserRepository) GetByBiometricToken(token string) (*domain.Usuario, error) {
 	return nil, errors.New("autenticación biométrica no soportada en SQL Server")
+}
+
+func (r *sqlServerUserRepository) RemoveBiometricToken(cedula string) error {
+	return nil
 }
