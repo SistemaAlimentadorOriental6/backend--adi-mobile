@@ -90,3 +90,82 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"user":    user,
 	})
 }
+
+type registerBiometricsRequest struct {
+	Cedula string `json:"cedula"`
+	Token  string `json:"token"`
+}
+
+func (h *AuthHandler) RegisterBiometrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Método no permitido"})
+		return
+	}
+
+	var req registerBiometricsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Cuerpo inválido"})
+		return
+	}
+
+	if req.Cedula == "" || req.Token == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "La cédula y el token son requeridos"})
+		return
+	}
+
+	err := h.authUseCase.RegisterBiometrics(req.Cedula, req.Token)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Token biométrico registrado correctamente",
+	})
+}
+
+type loginBiometricsRequest struct {
+	Token string `json:"token"`
+}
+
+func (h *AuthHandler) LoginBiometrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Método no permitido"})
+		return
+	}
+
+	var req loginBiometricsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Cuerpo inválido"})
+		return
+	}
+
+	if req.Token == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "El token es requerido"})
+		return
+	}
+
+	user, err := h.authUseCase.LoginWithBiometrics(req.Token)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "¡Bienvenido de nuevo!",
+		"user":    user,
+	})
+}
+

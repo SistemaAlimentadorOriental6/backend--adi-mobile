@@ -45,6 +45,16 @@ func main() {
 	reporteUC := usecase.NewReporteUseCase(reporteRepo)
 	trackingUC := usecase.NewTrackingUseCase(trackingRepo, geocercaRepo)
 
+	// Asegurar esquema de auxiliares en MySQL
+	type schemaMigrator interface {
+		EnsureSchema() error
+	}
+	if migrator, ok := userMySQLRepo.(schemaMigrator); ok {
+		if err := migrator.EnsureSchema(); err != nil {
+			log.Printf("⚠️  No se pudo actualizar tabla auxiliares: %v", err)
+		}
+	}
+
 	// Logs de diagnóstico: crear tabla automáticamente si no existe
 	logRepo := repository.NewMysqlLogRepository(dbMySQL)
 	if err := logRepo.(*repository.MysqlLogRepository).EnsureSchema(); err != nil {
@@ -62,6 +72,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/validate-login", authHandler.Login)
+	mux.HandleFunc("/api/biometrics/register", authHandler.RegisterBiometrics)
+	mux.HandleFunc("/api/biometrics/login", authHandler.LoginBiometrics)
 	mux.HandleFunc("/api/registrar-actividad", reporteHandler.Registrar)
 	mux.HandleFunc("/api/listar-actividad", reporteHandler.Listar)
 	mux.HandleFunc("/api/registro-hoy", reporteHandler.ObtenerRegistroHoy)

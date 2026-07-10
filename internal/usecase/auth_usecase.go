@@ -7,6 +7,8 @@ import (
 
 type AuthUseCase interface {
 	Login(cedula string, email string) (*domain.Usuario, error)
+	RegisterBiometrics(cedula string, token string) error
+	LoginWithBiometrics(token string) (*domain.Usuario, error)
 }
 
 type authUseCase struct {
@@ -41,4 +43,21 @@ func (u *authUseCase) Login(cedula string, email string) (*domain.Usuario, error
 	}
 
 	return userDetails, nil
+}
+
+func (u *authUseCase) RegisterBiometrics(cedula string, token string) error {
+	log.Printf("🔒 Registrando token biométrico para la cédula: %s", cedula)
+	return u.mysqlRepo.SaveBiometricToken(cedula, token)
+}
+
+func (u *authUseCase) LoginWithBiometrics(token string) (*domain.Usuario, error) {
+	log.Printf("🔍 Intentando login con token biométrico")
+	user, err := u.mysqlRepo.GetByBiometricToken(token)
+	if err != nil {
+		log.Printf("❌ Error buscando token biométrico: %v", err)
+		return nil, err
+	}
+
+	log.Printf("✅ Login biométrico exitoso para el usuario: %s (%s)", user.Nombre, user.Cedula)
+	return user, nil
 }

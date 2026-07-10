@@ -112,3 +112,11 @@ func (r *sqlServerUserRepository) GetActiveEmployees() (map[string]domain.Usuari
 func (r *sqlServerUserRepository) Upsert(user *domain.Usuario) error {
 	return nil
 }
+
+func (r *sqlServerUserRepository) SaveBiometricToken(cedula string, token string) error {
+	return nil
+}
+
+func (r *sqlServerUserRepository) GetByBiometricToken(token string) (*domain.Usuario, error) {
+	return nil, errors.New("autenticación biométrica no soportada en SQL Server")
+}
